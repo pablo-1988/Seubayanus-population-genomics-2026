@@ -1,0 +1,33 @@
+# macOS system files
+.DS_Store
+
+# Microsoft Office temporary files
+*.docx
+~$*.docx
+
+# R session files
+*.Rhistory
+*.RData
+
+# Claude Code settings
+.claude/
+
+# Paper figures (available via journal/Zenodo)
+Figures/
+
+# Original unsorted LRSDAY scripts (archived)
+LRSDAY-scripts/
+
+# Large bioinformatics data files (not tracked in git)
+*.vcf
+*.vcf.gz
+*.bam
+*.bai
+*.fa
+*.fasta
+*.fastq
+*.fastq.gz
+*.gff3
+*.gff
+*.tsv
+*.bed
