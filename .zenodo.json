@@ -1,0 +1,20 @@
+{
+  "title": "Analysis scripts for the population genomics of Saccharomyces eubayanus (2026)",
+  "description": "Reproducible analysis scripts accompanying the Saccharomyces eubayanus population-genomics study: GATK variant calling, phylogenomics and population structure, PopGenome statistics, Nanopore assembly and structural-variant analysis (including TE-SV association), maltose (MAL) phenotyping, admixture and local-ancestry inference (Dsuite D-statistics/f-branch, LOTER, NeighborNet networks, chromosome painting), competitive two-species read mapping, and IQ-TREE 3 + LSD2 divergence-time estimation.",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "MIT",
+  "keywords": [
+    "Saccharomyces eubayanus",
+    "population genomics",
+    "admixture",
+    "introgression",
+    "local ancestry",
+    "structural variation",
+    "divergence time",
+    "lager yeast"
+  ],
+  "creators": [
+    { "name": "Villarreal, Pablo" }
+  ]
+}
