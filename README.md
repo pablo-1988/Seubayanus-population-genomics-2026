@@ -5,7 +5,9 @@ Scripts and analysis code for the paper:
 > **"Host-shift adaptation shapes genome architecture in *Saccharomyces eubayanus*"**
 > Pablo Villarreal-Díaz, Francisco Cubillos et al. *(Manuscript under review, 2026)*
 
-This repository contains all scripts used for genomic, population-genetic, and phenotypic analyses of *Saccharomyces eubayanus* strains described in the paper. Scripts are organized by analysis section.
+This repository contains all scripts used for genomic, population-genetic, and phenotypic analyses of *Saccharomyces eubayanus* strains described in the paper. Scripts are organized by analysis section, numbered in the logical order in which the analyses are run.
+
+Sections **01–05** cover the core pipeline (variant calling, population structure, population-genetics statistics, Nanopore assembly / structural variants, and phenotyping). Sections **06–08** were added for the 2026 revision and provide direct, independent evidence of gene flow and genome dynamics: admixture and local-ancestry inference, an assembly-free interspecific-hybridity test, and time-calibrated divergence estimation.
 
 ---
 
@@ -13,12 +15,22 @@ This repository contains all scripts used for genomic, population-genetic, and p
 
 ```
 .
-├── 01_GATK_variant_calling/
-├── 02_Phylogenomics_PopStructure/
-├── 03_PopGenome_statistics/
-├── 04_Nanopore_Assembly_SV/
-└── 05_Phenotyping_Maltose/
+├── 01_GATK_variant_calling/          # short-read variant calling (GATK4) + base pop-structure
+├── 02_Phylogenomics_PopStructure/    # PCA, ADMIXTURE CV, TreeMix
+├── 03_PopGenome_statistics/          # π, Tajima's D, FST, Dxy
+├── 04_Nanopore_Assembly_SV/          # ONT assembly (LRSDAY), MUM&Co SVs
+│   └── TE_SV_association/             #   + TE–structural-variant enrichment (revision)
+├── 05_Phenotyping_Maltose/           # growth phenotyping in maltose
+├── 06_Admixture_LocalAncestry/       # Dsuite, LOTER, NeighborNet, chromosome painting (revision)
+│   ├── Dsuite/
+│   ├── LOTER/
+│   ├── Network_SplitsTree/
+│   └── Chromosome_painting/
+├── 07_Competitive_mapping/           # two-species competitive read mapping (revision)
+└── 08_Divergence_times_IQTREE3/      # IQ-TREE 3 + LSD2 dating; net divergence (revision)
 ```
+
+**Workflow order.** `01` produces the SNP call set that feeds `02` (structure), `03` (diversity/differentiation) and, in the revision, `06` (admixture/local ancestry) and `08` (dating). `04` produces the long-read assemblies and structural variants used by its `TE_SV_association/` sub-analysis; the raw long reads are also used by `07`. `05` links the genomic lineages to maltose-growth phenotypes.
 
 ---
 
@@ -112,6 +124,20 @@ The LRSDAY (Long Read Sequencing Data Analysis Workflow) pipeline was followed f
 **R packages:** tidyverse, ggplot2, reshape2, pheatmap, viridis, RIdeogram, GenomicRanges, rtracklayer, Biostrings, clusterProfiler, org.Sc.sgd.db, readxl, dplyr
 **Key tools:** MUMmer4, MUM&Co v3.8
 
+### 4c — TE–Structural-Variant Association (`04_Nanopore_Assembly_SV/TE_SV_association/`) *(2026 revision)*
+
+**Analysis:** Tests whether MUM&Co structural-variant breakpoints are enriched in transposable-element (TE) regions of CBS12357. TEs were annotated by BLAST of the *S. cerevisiae* Ty/LTR library against CBS12357 (predominantly solo LTRs, ~0.4% of the genome). Enrichment of SV breakpoints in TE is tested against a permutation null, and cross-checked against MUM&Co's own `mobile` flag, overall and per lineage.
+
+| Script | Description |
+|--------|-------------|
+| `41_te_sv_enrichment.sh` | SV breakpoints vs TE regions; permutation null (`bedtools shuffle`); concordance with the MUM&Co `mobile` flag |
+| `42_te_sv_figure.py` | Overall figure: SV composition, breakpoint enrichment, mobile-vs-novel concordance |
+| `43_te_sv_per_pop.py` | Per-lineage enrichment and fraction of breakpoints in TE |
+
+**Result:** SV breakpoints are ~23× enriched in TE regions (p < 0.001); the enrichment is present in every lineage (a species-wide mechanism), while the Holarctic lineage carries a higher total SV burden.
+
+**Key tools:** BLAST+, bedtools; Python (numpy, pandas, scipy, matplotlib)
+
 ---
 
 ## Section 5 — Phenotyping in Maltose (`05_Phenotyping_Maltose/`)
@@ -123,6 +149,80 @@ The LRSDAY (Long Read Sequencing Data Analysis Workflow) pipeline was followed f
 | `fenotipos_maltose.R` | Generates annotated heatmaps of lag phase and ODmax across conditions (Glucose2, Maltose2, Maltose5, Maltose10, Maltose20); z-score normalized, hierarchical clustering, color-coded by population |
 
 **R packages:** readxl, dplyr, tidyr, pheatmap, RColorBrewer
+
+---
+
+## Section 6 — Admixture & Local Ancestry (`06_Admixture_LocalAncestry/`) *(2026 revision)*
+
+**Analysis:** Direct, independent evidence of gene flow among the pure lineages (PA, PB1–PB4) and the admixed sub-populations (Holarctic/Hol, NoAm, SoAm1–4), using four complementary approaches. This section replaces the reliance on model-based clustering with genome-wide, method-diverse evidence of introgression and mosaic ancestry.
+
+### 6a — Dsuite: D-statistics and f-branch (`Dsuite/`)
+
+| Script | Description |
+|--------|-------------|
+| `07_dsuite_driver.sh` | Runs `Dsuite Dtrios` (Patterson's D, f4-ratio, BBAA/ABBA/BABA) and `Dsuite Fbranch` over the population tree |
+| `35_fbranch_table.py` | Parses the f-branch matrix; adds block-jackknife Z-scores, SE and p-values (`Fbranch -Z`); tidy tables |
+| `36_fbranch_stats_fig.py` | Annotated f-branch heatmap + pairwise comparisons between gene-flow estimates |
+| `37_fbranch_7pop.py` | f-branch restricted to pure lineages + Hol + NoAm (no SoAm) |
+| `38_fbranch_6pop.py` | f-branch for pure lineages + Hol (no NoAm) |
+| `39_fbranch_6pop_NoAm.py` | f-branch for pure lineages + NoAm (no Hol) |
+
+### 6b — LOTER: local ancestry (`LOTER/`)
+
+| Script | Description |
+|--------|-------------|
+| `04_loter.py` | Parameter-free local-ancestry inference; pure lineages as reference panels, admixed strains as targets |
+| `04b_loter_validate.py` | Held-out validation of the minor-ancestry threshold |
+| `04c_classify_all.py` | Per-strain admixture classification from LOTER proportions |
+| `09_loter_K5.py` | LOTER run under the K = 5 lineage scheme |
+
+### 6c — NeighborNet split networks (`Network_SplitsTree/`)
+
+| Script | Description |
+|--------|-------------|
+| `05_network.R`, `10_network_K5.R`, `10b_network_all.R` | NeighborNet networks (full cohort / K = 5 scheme) |
+| `10c_network_from_splits.R` | Layout/plot from SplitsTree-computed split systems (phangorn/ape) |
+| `18_network_pure_Hol.R`, `19_network_pure_Hol_NoAm_SoAm1.R` | Networks for selected taxon subsets |
+
+### 6d — Chromosome painting (`Chromosome_painting/`)
+
+| Script | Description |
+|--------|-------------|
+| `04d_painting.py`, `09b_painting_K5.py`, `09c_painting_pop.py` | Chromosome paintings of per-SNP LOTER assignments |
+| `14_painting_windows.py` | Window-smoothing test (per-SNP → 10/25/50 kb majority vote): the mosaic is not an inference artefact |
+| `16_paintings_EN.py` | Publication-quality paintings (vector PDF) for Hol and NoAm |
+
+**Key tools:** Dsuite v0.5, LOTER, ADMIXTOOLS 2 (f2/f3/qpAdm), SplitsTree App v6.5.1; R (phangorn, ape); Python (numpy, pandas, scipy, matplotlib)
+
+---
+
+## Section 7 — Competitive Mapping / Interspecific-Hybridity Test (`07_Competitive_mapping/`) *(2026 revision)*
+
+**Analysis:** An assembly-free test that the strains are *not* interspecific hybrids. Raw Oxford Nanopore reads are mapped competitively against a concatenated two-species reference (*S. eubayanus* CBS12357 + *S. cerevisiae* S288C, R64 / GCF_000146045.2). Breadth of coverage per genome — not the proportion of reads — is the decisive statistic: only a true hybrid (lager control CBS1483) covers both genomes genome-wide, whereas pure/admixed *S. eubayanus* strains cover ~99% of the *S. eubayanus* genome and < 1% of the *S. cerevisiae* genome.
+
+| Script | Description |
+|--------|-------------|
+| `31_competitive_mapping.sh` | `minimap2 -ax map-ont` to the two-species reference; per-genome breadth and mean depth from `samtools coverage` |
+| `34_mapping_figure.py` | Summary table and per-genome coverage figure |
+
+**Key tools:** minimap2, samtools; Python (pandas, matplotlib)
+
+---
+
+## Section 8 — Divergence-Time Estimation (`08_Divergence_times_IQTREE3/`) *(2026 revision)*
+
+**Analysis:** Time-calibrated phylogeny of the lineages with IQ-TREE 3 + LSD2, plus an independent estimate of pairwise split times from Nei's net divergence. Because gene flow violates a strict bifurcating tree, the two estimators are reported together. Branch lengths use explicit constant sites (`-fconst`); dating uses a fixed clock (mutation rate 1.67e-10 /bp/gen × generations-per-year), and node ages are reported as a range over the generations-per-year assumption.
+
+| Script | Description |
+|--------|-------------|
+| `22_build_alignment.py` | Pseudo-haploid SNP alignment + constant-site (A/C/G/T) counts for `-fconst` |
+| `23_net_divergence.py` | Nei's net divergence (d_a) split times; leave-one-chromosome-out block jackknife |
+| `24_extract_node_ages.R` | TMRCA / crown ages from the LSD2 time tree |
+| `25_dating_compare.py` | LSD2 vs net-divergence comparison |
+| `26_population_timetree.R`, `28_timetree_panelC.R` | Population time-tree figures |
+| `27_dating_jackknife.py` | Chromosome block jackknife for the dating |
+
+**Key tools:** IQ-TREE 3, LSD2; Python (numpy, pandas, matplotlib); R (ape)
 
 ---
 
@@ -169,6 +269,16 @@ devtools::install_github("zwdzwd/RIdeogram")
 | RepeatMasker | any | TE annotation |
 | HMMER | ≥ 3.3 | HMM-based search |
 | NanoPlot | any | ONT QC |
+| Dsuite | 0.5 (r58) | D-statistics, f4-ratio, f-branch |
+| ADMIXTOOLS 2 | 2.0.10 | f2, f3, qpAdm |
+| LOTER | — | Local ancestry inference |
+| SplitsTree App | 6.5.1 | NeighborNet split networks |
+| minimap2 | 2.30 | Competitive two-species read mapping |
+| samtools | ≥ 1.22 | BAM processing, per-genome coverage |
+| BLAST+ | ≥ 2.13 | TE / MAL homology annotation |
+| bedtools | ≥ 2.30 | Interval overlap, permutation null |
+| IQ-TREE | 3.1.3 | Maximum-likelihood phylogeny |
+| LSD2 | 2.4.4 | Least-squares molecular dating |
 
 ---
 
